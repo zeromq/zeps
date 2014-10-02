@@ -1,5 +1,9 @@
 # ZeroMQ Enterprise Publish-Subscribe - ZEPS
 
+ZEPS is a broker-based publish-and-subscribe design that offers both high-speed low-latency pub-sub, and persistent journalled pub-sub, automatically switching clients from low gear to high gear according to their capabilities. ZEPS is compatible with multicast protocols like NORM and PGM, and has extensible subscription matching.
+
+Note that this is a concept wire-frame. There is no ZEPS broker at this stage. ZEPS is intended to be packaged into the ZeroMQ broker project (zbroker), which is an embeddable broker library that can be wrapped in arbitrary languages for deployment.
+
 ## Problem Statement
 
 The built-in ZeroMQ PUB-SUB pattern is tuned for high frequency, low-latency, transient data (the radio broadcast model). This model is extremely scalable, and requires no mediation (brokers). It also maps directly to multicast protocols like PGM and NORM.
@@ -124,4 +128,8 @@ Within a stream, clients can subscribe to sub-streams of messages using pattern 
 * regular expression matching
 
 More complex matching needs more complex data structures. This is an area we may make extensible, internally.
+
+## Multicast Output
+
+For certain use cases, real-time data can be sent over multicast (using NORM or PGM). Historical data would never be multicast. If clients want both multicast real-time data, and historical data, they would create two connections and reconcile them.
 
