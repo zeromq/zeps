@@ -1,0 +1,85 @@
+<class
+    name = "zeps_msg"
+    signature = "5"
+    title = "ZeroMQ Enterprise Publish-Subscribe Protocol"
+    package_dir = "."
+    project_header = "czmq.h"
+    >
+    <include filename = "license.xml" />
+
+    <grammar>
+    ZEPS         = open-stream *use-stream [ close-stream ]
+
+    open-stream  = C:ATTACH ( S:ATTACH-OK / error )
+
+    use-stream   = C:SUBSCRIBE ( S:SUBSCRIBE-OK / error )
+                 / C:CREDIT
+                 / S:DELIVER
+                 / C:PUBLISH
+                 / C:PING S:PING-OK
+
+    close-stream = C:DETACH / S:DETACH
+
+    error        = S:INVALID
+    </grammar>
+
+    <message name = "ATTACH">
+    Client opens stream
+        <field name = "protocol" type = "string" value = "ZEPS">Constant "ZEPS"</field>
+        <field name = "version" type = "number" size = "2" value = "1">Protocol version 1</field>
+        <field name = "stream" type = "string">Stream name</field>
+    </message>
+
+    <message name = "ATTACH-OK">
+    Server grants the client access
+    </message>
+
+    <message name = "SUBSCRIBE">
+    Client subscribes to a set of topics
+        <field name = "pattern" type = "string">Subscription pattern</field>
+        <field name = "latest" type = "number" size = "8">Last known sequence</field>
+    </message>
+
+    <message name = "SUBSCRIBE-OK">
+    Server confirms the subscription
+    </message>
+
+    <message name = "CREDIT">
+    Client sends credit to the server
+        <field name = "credit" type = "number" size = "8">Credit, in bytes</field>
+    </message>
+
+    <message name = "PUBLISH">
+    Client publishes a new message to the open stream
+        <field name = "key" type = "string">Message routing key</field>
+        <field name = "body" type = "chunk">Message contents</field>
+    </message>
+    
+    <message name = "DELIVER">
+    Server delivers a message to the client
+        <field name = "sequence" type = "number" size = "8">Sequenced per stream</field>
+        <field name = "key" type = "string">Message routing key</field>
+        <field name = "body" type = "chunk">Message contents</field>
+    </message>
+
+    <message name = "PING">
+    Client or server sends a heartbeat
+    </message>
+
+    <message name = "PING-OK">
+    Client or server answers a heartbeat
+    </message>
+
+    <message name = "DETACH">
+    Client closes the peering
+    </message>
+
+    <message name = "DETACH-OK">
+    Server handshake the close
+    </message>
+
+    <message name = "INVALID">
+    Server tells client it sent an invalid message
+        <field name = "reason" type = "string">Printable explanation</field>
+    </message>
+</class>
