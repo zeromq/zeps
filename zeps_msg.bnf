@@ -1,0 +1,76 @@
+The following ABNF grammar defines the ZeroMQ Enterprise Publish-Subscribe Protocol:
+
+    ZEPS         = open-stream *use-stream [ close-stream ]
+
+    open-stream  = C:ATTACH ( S:ATTACH-OK / error )
+
+    use-stream   = C:SUBSCRIBE ( S:SUBSCRIBE-OK / error )
+                 / C:CREDIT
+                 / S:DELIVER
+                 / C:PUBLISH
+                 / C:PING S:PING-OK
+
+    close-stream = C:DETACH / S:DETACH
+
+    error        = S:INVALID
+
+    ;     Client opens stream
+    attach          = signature %d1 protocol version stream
+    signature       = %xAA %xA5             ; two octets
+    protocol        = string                ; Constant "ZEPS"
+    version         = number-2              ; Protocol version 1
+    stream          = string                ; Stream name
+
+    ;     Server grants the client access
+    attach_ok       = signature %d2
+
+    ;     Client subscribes to a set of topics
+    subscribe       = signature %d3 pattern latest
+    pattern         = string                ; Subscription pattern
+    latest          = number-8              ; Last known sequence
+
+    ;     Server confirms the subscription
+    subscribe_ok    = signature %d4
+
+    ;     Client sends credit to the server
+    credit          = signature %d5 credit
+    credit          = number-8              ; Credit, in bytes
+
+    ;     Client publishes a new message to the open stream
+    publish         = signature %d6 key body
+    key             = string                ; Message routing key
+    body            = chunk                 ; Message contents
+
+    ;     Server delivers a message to the client
+    deliver         = signature %d7 sequence key body
+    sequence        = number-8              ; Sequenced per stream
+    key             = string                ; Message routing key
+    body            = chunk                 ; Message contents
+
+    ;     Client or server sends a heartbeat
+    ping            = signature %d8
+
+    ;     Client or server answers a heartbeat
+    ping_ok         = signature %d9
+
+    ;     Client closes the peering
+    detach          = signature %d10
+
+    ;     Server handshake the close
+    detach_ok       = signature %d11
+
+    ;     Server tells client it sent an invalid message
+    invalid         = signature %d12 reason
+    reason          = string                ; Printable explanation
+
+    ; A chunk has 4-octet length + binary contents
+    chunk           = number-4 *OCTET
+
+    ; Strings are always length + text contents
+    string          = number-1 *VCHAR
+
+    ; Numbers are unsigned integers in network byte order
+    number-1        = 1OCTET
+    number-2        = 2OCTET
+    number-4        = 4OCTET
+    number-8        = 8OCTET
