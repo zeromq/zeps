@@ -1,3 +1,3 @@
 gsl -q -script:zproto_codec_java zeps_msg.xml
 gsl -q -script:zproto_codec_c zeps_msg.xml
-
+gsl -q -script:zproto_server_c zeps_server.xml

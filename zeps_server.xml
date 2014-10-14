@@ -1,0 +1,66 @@
+<class
+    name = "zeps_server"
+    title = "ZeroMQ Enterprise Publish-Subscribe Protocol Server"
+    protocol_class = "zeps_msg"
+    package_dir = "."
+    project_header = "czmq.h"
+    >
+    This is a server implementation of the ZeroMQ Enterprise Publish-Subscribe protocol
+    <include filename = "license.xml" />
+
+    <state name = "start" inherit = "external">
+        <!-- Client ATTACHes and server sets up the stream and responds with ATTACH-OK -->
+        <event name = "ATTACH" next = "attached">
+            <action name = "setup stream" />
+            <action name = "send" message = "ATTACH-OK" />
+        </event>
+    </state>
+
+    <state name = "attached" inherit = "external">
+        <!-- Client SUBSCRIBEs and server responds with SUBSCRIBE-OK -->
+        <event name = "SUBSCRIBE">
+            <action name = "setup subscription" />
+            <action name = "send" message = "SUBSCRIBE-OK" />
+        </event>
+
+        <!-- Client sends CREDIT and server updates its credit value -->
+        <event name = "CREDIT" >
+            <action name = "accept credit" />
+        </event>
+
+        <!-- Client PUBLISHes a message and server passes it on -->
+        <event name = "PUBLISH" >
+            <action name = "publish message" />
+        </event>
+
+        <!-- Server DELIVERs a message to clients -->
+        <event name = "data recvd">
+            <action name = "send" message = "DELIVER" />
+        </event>
+
+        <!-- Client DETACHes and server responds with DETACH and terminates -->
+        <event name = "DETACH" next = "start">
+            <action name = "send" message = "DETACH-OK" />
+            <action name = "terminate" />
+        </event>
+    </state>
+
+    <!-- Superstate for external states -->
+    <state name = "external">
+        <!-- Peer signals it's alive -->
+        <event name = "PING">
+            <action name = "send" message = "PING-OK" />
+        </event>
+
+        <!-- All other protocol messages are invalid -->
+        <event name = "*">
+            <action name = "send" message = "INVALID" />
+            <action name = "terminate" />
+        </event>
+
+        <!-- This built-in event hits on a client timeout -->
+        <event name = "expired">
+            <action name = "terminate" />
+        </event>
+    </state>
+</class>

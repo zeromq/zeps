@@ -1,0 +1,7 @@
+#  Run selftests and check memory
+echo "Rebuilding zeps_selftest..."
+gcc -g -o zeps_selftest zeps*.c ${CFLAGS} ${LDFLAGS} -lzmq -lczmq -lpthread -lsodium -luuid
+if [ $? -eq 0 ]; then
+    echo "Starting Valgrind memcheck..."
+    valgrind --tool=memcheck --leak-check=full --suppressions=valgrind.supp ./zeps_selftest -v
+fi
