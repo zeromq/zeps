@@ -1,0 +1,6 @@
+#!/bin/sh
+
+#  Build selftest
+echo "Rebuilding zeps_selftest..."
+gcc -g ${CFLAGS} ${LDFLAGS} -c zeps*.c
+gcc -g -o zeps_selftest zeps*.o ${CFLAGS} ${LDFLAGS} -lzmq -lczmq -lpthread -lsodium -luuid
