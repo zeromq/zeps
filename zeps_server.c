@@ -50,6 +50,7 @@ struct _server_t {
     zsock_t *sub_socket;        //  The subscribe socket
     zactor_t *pub_beacon;       //  beacon publishing pub endpoint
     zactor_t *sub_beacon;       //  beacon receiving pub endpoints
+    zarmour_t *armour;          //  armoured text codec
 };
 
 
@@ -76,62 +77,24 @@ struct _client_t {
 
 
 //  ---------------------------------------------------------------------------
-//  base64 with URL & filename friendly alphabet (RFC4648, no padding)
-//  Using this to generate safe filenames for stream data files
-//
-//                               1    1    2    2    3    3    4    4    5    5    6
-static char  //        0----5----0----5----0----5----0----5----0----5----0----5----0---
-s_base64_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+//  base64 encode data
 
 static char *
-s_base64_encode (byte *data, int length)
+s_base64_encode (zarmour_t *armour, byte *data, int length)
 {
-    char *str = zmalloc (4 * (length / 3) + ((length % 3)? length % 3 + 1: 0) + 1);
-    char *enc = str;
-    byte *needle = data, *ceiling = data + length;
-    while (needle < ceiling) {
-        *enc++ = s_base64_alphabet[(*needle) >> 2];
-        if (needle + 1 < ceiling) {
-            *enc++ = s_base64_alphabet[((*needle << 4) & 0x30) | (*(needle + 1) >> 4)];
-            if (needle + 2 < ceiling) {
-                *enc++ = s_base64_alphabet[((*(needle + 1) << 2) & 0x3c) | (*(needle + 2) >> 6)];
-                *enc++ = s_base64_alphabet[*(needle + 2) & 0x3f];
-            }
-            else
-                *enc++ = s_base64_alphabet[(*(needle + 1) << 2) & 0x3c];
-        }
-        else
-            *enc++ = s_base64_alphabet[(*needle << 4) & 0x30];
-        needle += 3;
-    }
-    *enc = 0;
-    return str;
+    assert (armour);
+    return zarmour_encode (armour, data, length);
 }
 
+
+//  ---------------------------------------------------------------------------
+//  decode base64 data
+
 static byte *
-s_base64_decode (const char *data, int length, size_t *size)
+s_base64_decode (zarmour_t *armour, const char *data, int length, size_t *size)
 {
-    *size = 3 * (length / 4) + ((length % 4)? length % 4 - 1 : 0) + 1;
-    byte *bytes = zmalloc (*size);
-    byte *dec = bytes;
-    byte *needle = (byte *) data, *ceiling = (byte *) (data + length);
-    byte i1, i2, i3, i4;
-    while (needle < ceiling) {
-        i1 = (byte) (strchr (s_base64_alphabet, *needle) - s_base64_alphabet);
-        i2 = (byte) (strchr (s_base64_alphabet, *(needle + 1)) - s_base64_alphabet);
-        *dec++ = i1 << 2 | i2 >> 4;
-        if (needle + 2 < ceiling) {
-            i3 = (byte) (strchr (s_base64_alphabet, *(needle + 2)) - s_base64_alphabet);
-            *dec++ = i2 << 4 | i3 >> 2;
-        }
-        if (needle + 3 < ceiling) {
-            i4 = (byte) (strchr (s_base64_alphabet, *(needle + 3)) - s_base64_alphabet);
-            *dec++ = i3 << 6 | i4;
-        }
-        needle += 4;
-    }
-    *dec = 0;
-    return bytes;
+    assert (armour);
+    return zarmour_decode (armour, (char *) data, size);
 }
 
 
@@ -164,7 +127,7 @@ s_stream_new (server_t *server, const char *name)
 
     //  Init stream object properties
     self->name = strdup (name);
-    self->dir_name = s_base64_encode ((byte *) name, strlen (name));
+    self->dir_name = s_base64_encode (server->armour, (byte *) name, strlen (name));
     self->journal_dir = zsys_sprintf ("%s/%s", server->base_dir, self->dir_name);
     self->seq = 0;
     self->clients = zlist_new ();
@@ -481,6 +444,10 @@ server_initialize (server_t *self)
     self->base_dir = strdup (zconfig_resolve (self->config, "server/base_dir", "/tmp"));
     self->streams = zhash_new ();
     zhash_set_destructor (self->streams, s_stream_destroy);
+    self->armour = zarmour_new ();
+    assert (self->armour);
+    zarmour_set_mode (self->armour, ZARMOUR_MODE_BASE64_URL);
+    zarmour_set_pad (self->armour, false);
     self->pub_beacon = NULL;
     self->sub_beacon = NULL;
     self->pub_endpoint = NULL;
@@ -500,6 +467,7 @@ server_terminate (server_t *self)
     //  Destroy properties here
     free (self->base_dir);
     self->base_dir = NULL;
+    zarmour_destroy (&self->armour);
     free (self->pub_endpoint);
     self->pub_endpoint = NULL;
     zhash_destroy (&self->streams);
@@ -642,14 +610,14 @@ client_terminate (client_t *self)
 //  base64 test utility
 
 static void
-s_base64_test (const char *test_string, const char *expected_result, bool verbose)
+s_base64_test (zarmour_t *armour, const char *test_string, const char *expected_result, bool verbose)
 {
     assert (test_string);
 
     if (verbose)
         zsys_debug (" * base64 encoding '%s'", test_string);
 
-    char *encoded = s_base64_encode ((byte *) test_string, strlen (test_string));
+    char *encoded = s_base64_encode (armour, (byte *) test_string, strlen (test_string));
     assert (encoded);
     assert (strlen (encoded) == strlen (expected_result));
     assert (streq (encoded, expected_result));
@@ -658,7 +626,7 @@ s_base64_test (const char *test_string, const char *expected_result, bool verbos
         zsys_debug (" * base64 encoded '%s' into '%s'", test_string, encoded);
 
     size_t size;
-    char *decoded = (char *) s_base64_decode (encoded, strlen (encoded), &size);
+    char *decoded = (char *) s_base64_decode (armour, encoded, strlen (encoded), &size);
     assert (decoded);
     assert (size == strlen (decoded) + 1);
     assert (streq (decoded, test_string));
@@ -683,13 +651,18 @@ zeps_server_test (bool verbose)
 
     //  Unit test of base 64 encoding/decoding
     //  Test against test vectors from RFC4648.
-    s_base64_test ("", "", verbose);
-    s_base64_test ("f", "Zg", verbose);
-    s_base64_test ("fo", "Zm8", verbose);
-    s_base64_test ("foo", "Zm9v", verbose);
-    s_base64_test ("foob", "Zm9vYg", verbose);
-    s_base64_test ("fooba", "Zm9vYmE", verbose);
-    s_base64_test ("foobar", "Zm9vYmFy", verbose);
+    zarmour_t *armour = zarmour_new ();
+    assert (armour);
+    zarmour_set_mode (armour, ZARMOUR_MODE_BASE64_URL);
+    zarmour_set_pad (armour, false);
+    s_base64_test (armour, "", "", verbose);
+    s_base64_test (armour, "f", "Zg", verbose);
+    s_base64_test (armour, "fo", "Zm8", verbose);
+    s_base64_test (armour, "foo", "Zm9v", verbose);
+    s_base64_test (armour, "foob", "Zm9vYg", verbose);
+    s_base64_test (armour, "fooba", "Zm9vYmE", verbose);
+    s_base64_test (armour, "foobar", "Zm9vYmFy", verbose);
+    zarmour_destroy (&armour);
 
     //  @selftest
     zactor_t *server = zactor_new (zeps_server, "server");
