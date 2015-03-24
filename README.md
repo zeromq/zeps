@@ -1,5 +1,11 @@
 # ZeroMQ Enterprise Publish-Subscribe - ZEPS
 
+## DEPRECATED
+
+This project is deprecated by zeromq/Malamute.
+
+## Overview
+
 ZEPS is a broker-based publish-and-subscribe design that offers both high-speed low-latency pub-sub, and persistent journalled pub-sub, automatically switching clients from low gear to high gear according to their capabilities. ZEPS is compatible with multicast protocols like NORM and PGM, and has extensible subscription matching.
 
 Note that this is a concept wire-frame. There is no ZEPS broker at this stage. ZEPS is intended to be packaged into the ZeroMQ broker project (zbroker), which is an embeddable broker library that can be wrapped in arbitrary languages for deployment.
