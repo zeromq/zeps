@@ -350,6 +350,10 @@ public class ZepsMsg implements java.io.Closeable
         assert (socket != null);
 
         ZMsg msg = new ZMsg();
+        //  If we're sending to a ROUTER, send the routingId first
+        if (socket.getType () == ZMQ.ROUTER) {
+            msg.add (routingId);
+        }
 
         int frameSize = 2 + 1;          //  Signature and message ID
         switch (id) {
@@ -589,6 +593,7 @@ public class ZepsMsg implements java.io.Closeable
     {
         ZepsMsg self = new ZepsMsg (ZepsMsg.PUBLISH);
         self.setKey (key);
+        self.setBody (body);
         self.send (output);
     }
 
@@ -604,6 +609,7 @@ public class ZepsMsg implements java.io.Closeable
         ZepsMsg self = new ZepsMsg (ZepsMsg.DELIVER);
         self.setSequence (sequence);
         self.setKey (key);
+        self.setBody (body);
         self.send (output);
     }
 
@@ -687,10 +693,12 @@ public class ZepsMsg implements java.io.Closeable
         break;
         case PUBLISH:
             copy.key = this.key;
+            copy.body = this.body;
         break;
         case DELIVER:
             copy.sequence = this.sequence;
             copy.key = this.key;
+            copy.body = this.body;
         break;
         case PING:
         break;
